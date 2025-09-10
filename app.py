@@ -144,5 +144,32 @@ def send_ineligible_mail():
     except Exception as e:
         return jsonify({'message': f'Failed to send mail or update Firestore: {str(e)}'}), 500
 
+@app.route('/api/approved')
+def get_approved():
+    users_ref = db.collection('users')
+    users = users_ref.stream()
+    approved_list = []
+    for user_doc in users:
+        user_data = user_doc.to_dict()
+        user_id = user_doc.id
+        email = user_data.get('email', '')
+        username = user_data.get('username', '')
+        transactions_ref = users_ref.document(user_id).collection('transactions')
+        transactions = list(transactions_ref.stream())
+        if not transactions:
+            continue  # Skip users with no transactions
+        for txn_doc in transactions:
+            txn = txn_doc.to_dict()
+            approved_list.append({
+                'user_id': user_id,
+                'email': email,
+                'username': username,
+                'amount': txn.get('amount', ''),
+                'timestamp': txn.get('timestamp', '')
+            })
+    # Sort by timestamp descending (optional)
+    approved_list.sort(key=lambda x: x['timestamp'], reverse=True)
+    return jsonify(approved_list)
+
 if __name__ == '__main__':
     app.run(debug=True)

@@ -18,7 +18,7 @@
         </div>
         <div class="flex justify-center gap-6 mb-10">
             <button id="requestsBtn" class="bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition">Requests</button>
-            <button class="bg-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600 transition">Approved</button>
+            <button id="approvedBtn" class="bg-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600 transition">Approved</button>
         </div>
         <div id="logMessage" class="mb-4 text-center"></div>
         <div id="requestsTableContainer"></div>
@@ -117,6 +117,55 @@
                             });
                         }); 
                     });
+                });
+        });
+
+        document.getElementById('approvedBtn').addEventListener('click', function() {
+            fetch('/api/approved')
+                .then(response => response.json())
+                .then(data => {
+                    let html = `
+                        <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="py-2 px-4 border-b">S.No</th>
+                                    <th class="py-2 px-4 border-b">User ID</th>
+                                    <th class="py-2 px-4 border-b">Email</th>
+                                    <th class="py-2 px-4 border-b">Username</th>
+                                    <th class="py-2 px-4 border-b">Amount</th>
+                                    <th class="py-2 px-4 border-b">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    data.forEach((txn, idx) => {
+                        // Format timestamp if needed
+                        let time = txn.timestamp;
+                        if (typeof time === 'object' && time.seconds) {
+                            // Firestore timestamp object
+                            const d = new Date(time.seconds * 1000);
+                            time = d.toLocaleString();
+                        } else if (typeof time === 'string') {
+                            time = new Date(time).toLocaleString();
+                        }
+                        html += `
+                            <tr>
+                                <td class="py-2 px-4 border-b">${idx + 1}</td>
+                                <td class="py-2 px-4 border-b">${txn.user_id}</td>
+                                <td class="py-2 px-4 border-b">${txn.email}</td>
+                                <td class="py-2 px-4 border-b">${txn.username}</td>
+                                <td class="py-2 px-4 border-b">${txn.amount}</td>
+                                <td class="py-2 px-4 border-b">${time}</td>
+                            </tr>
+                        `;
+                    });
+                    html += `
+                            </tbody>
+                        </table>
+                        </div>
+                    `;
+                    document.getElementById('requestsTableContainer').innerHTML = html;
                 });
         });
         </script>
