@@ -1,6 +1,17 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
+import firebase_admin
+from firebase_admin import credentials, firestore
+from flask import jsonify
+import smtplib
+from email.message import EmailMessage
+from flask import request
 
 app = Flask(__name__)
+
+if not firebase_admin._apps:
+    cred = credentials.Certificate('walkwins-4c968-firebase-adminsdk-fbsvc-d8e3842614.json')  # Download this from Firebase Console
+    firebase_admin.initialize_app(cred)
+db = firestore.client()
 
 app.secret_key = 'your_secret_key'
 
@@ -26,6 +37,57 @@ def index():
 def logout():
     session.pop('user', None)
     return redirect(url_for('login'))
+
+@app.route('/api/requests')
+def get_requests():
+    users_ref = db.collection('users')
+    docs = users_ref.stream()
+    user_list = []
+    for doc in docs:
+        data = doc.to_dict()
+        withdraw_amount = data.get('withdraw_amount')
+        if withdraw_amount is not None and withdraw_amount > 0:
+            user_list.append({
+                'user_id': doc.id,
+                'email': data.get('email', ''),
+                'username': data.get('username', ''),
+                'payment_details': data.get('payment_details', ''),
+                'withdraw_amount': withdraw_amount
+            })
+    return jsonify(user_list)
+
+@app.route('/api/send_ineligible_mail', methods=['POST'])
+def send_ineligible_mail():
+    data = request.get_json()
+    print('Received data:', data)
+    email = data.get('email')
+    user_id = data.get('user_id')
+    if not email or not user_id:
+        print('No email or user_id provided')
+        return jsonify({'message': 'Email or user_id not provided'}), 400
+
+    # Configure your SMTP settings here
+    SMTP_SERVER = 'smtp.gmail.com'
+    SMTP_PORT = 587
+    SMTP_USER = 'Walkwinsind@gmail.com'
+    SMTP_PASS = 'llys vcjr fdkj rpoj'
+
+    msg = EmailMessage()
+    msg['Subject'] = 'Payment Ineligibility'
+    msg['From'] = SMTP_USER
+    msg['To'] = email
+    msg.set_content('You are ineligible for payment.')
+
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+        # Update withdraw_amount in Firestore
+        db.collection('users').document(user_id).update({'withdraw_amount': 0})
+        return jsonify({'message': 'Ineligible mail sent!'})
+    except Exception as e:
+        return jsonify({'message': f'Failed to send mail or update Firestore: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
