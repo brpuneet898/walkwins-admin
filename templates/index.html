@@ -64,6 +64,33 @@
                     `;
                     document.getElementById('requestsTableContainer').innerHTML = html;
 
+                    document.querySelectorAll('.yes-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const email = this.getAttribute('data-email');
+                            const user_id = this.getAttribute('data-uid');
+                            const row = this.closest('tr');
+                            fetch('/api/approve_payment', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ email, user_id })
+                            })
+                            .then(res => res.json())
+                            .then(resp => {
+                                if (resp.message && resp.message.includes('credited')) {
+                                    alert(`Payment credited to ${user_id}`);
+                                    row.remove();
+                                } else {
+                                    alert(`Failed to credit payment to ${user_id}: ${resp.message}`);
+                                }
+                            })
+                            .catch(() => {
+                                alert(`Failed to credit payment to ${user_id}`);
+                            });
+                        });
+                    });
+
                     document.querySelectorAll('.reject-btn').forEach(btn => {
                         btn.addEventListener('click', function() {
                             const email = this.getAttribute('data-email');
