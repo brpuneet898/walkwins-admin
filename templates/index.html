@@ -17,8 +17,10 @@
             </form>
         </div>
         <div class="flex justify-center gap-6 mb-10">
-            <button id="requestsBtn" class="bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition">Requests</button>
-            <button id="approvedBtn" class="bg-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600 transition">Approved</button>
+            <button id="requestsBtn" class="bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition">Cash Requests</button>
+            <button id="approvedBtn" class="bg-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600 transition">Cash Approved</button>
+            <button id="voucherRequestsBtn" class="bg-purple-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-600 transition">Voucher Requests</button>
+            <button id="voucherApprovedBtn" class="bg-yellow-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-yellow-600 transition">Voucher Approved</button>
         </div>
         <div id="logMessage" class="mb-4 text-center"></div>
         <div id="requestsTableContainer"></div>
@@ -156,6 +158,152 @@
                                 <td class="py-2 px-4 border-b">${txn.email}</td>
                                 <td class="py-2 px-4 border-b">${txn.username}</td>
                                 <td class="py-2 px-4 border-b">${txn.amount}</td>
+                                <td class="py-2 px-4 border-b">${time}</td>
+                            </tr>
+                        `;
+                    });
+                    html += `
+                            </tbody>
+                        </table>
+                        </div>
+                    `;
+                    document.getElementById('requestsTableContainer').innerHTML = html;
+                });
+        });
+        
+        document.getElementById('voucherRequestsBtn').addEventListener('click', function() {
+            fetch('/api/voucher_requests')
+                .then(response => response.json())
+                .then(data => {
+                    let html = `
+                        <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="py-2 px-4 border-b">User ID</th>
+                                    <th class="py-2 px-4 border-b">Email</th>
+                                    <th class="py-2 px-4 border-b">Username</th>
+                                    <th class="py-2 px-4 border-b">Voucher Amount</th>
+                                    <th class="py-2 px-4 border-b">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    data.forEach(user => {
+                        html += `
+                            <tr>
+                                <td class="py-2 px-4 border-b">${user.user_id}</td>
+                                <td class="py-2 px-4 border-b">${user.email}</td>
+                                <td class="py-2 px-4 border-b">${user.username}</td>
+                                <td class="py-2 px-4 border-b">${user.voucher_amount}</td>
+                                <td class="py-2 px-4 border-b">
+                                    <button class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 voucher-approve-btn" data-email="${user.email}" data-uid="${user.user_id}">Approve</button>
+                                    <button class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 voucher-reject-btn" data-email="${user.email}" data-uid="${user.user_id}">Reject</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    html += `
+                            </tbody>
+                        </table>
+                        </div>
+                    `;
+                    document.getElementById('requestsTableContainer').innerHTML = html;
+
+                    // Approve button
+                    document.querySelectorAll('.voucher-approve-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const email = this.getAttribute('data-email');
+                            const user_id = this.getAttribute('data-uid');
+                            const row = this.closest('tr');
+                            fetch('/api/approve_voucher', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ email, user_id })
+                            })
+                            .then(res => res.json())
+                            .then(resp => {
+                                if (resp.message && resp.message.includes('approved')) {
+                                    alert(`Voucher approved for ${user_id}`);
+                                    row.remove();
+                                } else {
+                                    alert(`Failed to approve voucher for ${user_id}: ${resp.message}`);
+                                }
+                            })
+                            .catch(() => {
+                                alert(`Failed to approve voucher for ${user_id}`);
+                            });
+                        });
+                    });
+
+                    // Reject button
+                    document.querySelectorAll('.voucher-reject-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const email = this.getAttribute('data-email');
+                            const user_id = this.getAttribute('data-uid');
+                            const row = this.closest('tr');
+                            fetch('/api/reject_voucher', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ email, user_id })
+                            })
+                            .then(res => res.json())
+                            .then(resp => {
+                                if (resp.message && resp.message.includes('mail sent')) {
+                                    alert(`Rejected: Mail sent to ${email}`);
+                                    row.remove();
+                                } else {
+                                    alert(`Failed to send mail to ${email}: ${resp.message}`);
+                                }
+                            })
+                            .catch(() => {
+                                alert(`Failed to send mail to ${email}`);
+                            });
+                        });
+                    });
+                });
+        });
+        
+        document.getElementById('voucherApprovedBtn').addEventListener('click', function() {
+            fetch('/api/voucher_approved')
+                .then(response => response.json())
+                .then(data => {
+                    let html = `
+                        <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="py-2 px-4 border-b">S.No</th>
+                                    <th class="py-2 px-4 border-b">User ID</th>
+                                    <th class="py-2 px-4 border-b">Email</th>
+                                    <th class="py-2 px-4 border-b">Username</th>
+                                    <th class="py-2 px-4 border-b">Voucher Amount</th>
+                                    <th class="py-2 px-4 border-b">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    data.forEach((voucher, idx) => {
+                        // Format timestamp if needed
+                        let time = voucher.timestamp;
+                        if (typeof time === 'object' && time.seconds) {
+                            // Firestore timestamp object
+                            const d = new Date(time.seconds * 1000);
+                            time = d.toLocaleString();
+                        } else if (typeof time === 'string') {
+                            time = new Date(time).toLocaleString();
+                        }
+                        html += `
+                            <tr>
+                                <td class="py-2 px-4 border-b">${idx + 1}</td>
+                                <td class="py-2 px-4 border-b">${voucher.user_id}</td>
+                                <td class="py-2 px-4 border-b">${voucher.email}</td>
+                                <td class="py-2 px-4 border-b">${voucher.username}</td>
+                                <td class="py-2 px-4 border-b">${voucher.amount}</td>
                                 <td class="py-2 px-4 border-b">${time}</td>
                             </tr>
                         `;
